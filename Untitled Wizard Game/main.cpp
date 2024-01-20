@@ -64,6 +64,10 @@ public:
 		}
 	}
 
+	const std::vector<std::vector<Tile>>& data() {
+		return grid;
+	}
+
 	//can only be set if hasnt been set before
 	void set_Dims(int gridDims) {
 		grid.resize(gridDims);
@@ -118,20 +122,22 @@ public:
 
 class Player {
 	Rectangle hitbox{ 0, 0, 25, 25 };
-	std::vector<std::vector<Rectangle>>* collisionObjects;
+	Tilemap* map;
+	//std::vector<std::vector<Rectangle>>* collisionObjects;
 
 public:
-	Player(std::vector<std::vector<Rectangle>>* objects) {
-		collisionObjects = objects;
+	Player(Tilemap* tiles) {
+		map = tiles;
 	}
 
 	void move() {
 		if (IsKeyDown(KeyboardKey::KEY_W)) {
 			hitbox.y -= 5;
 
-			for (auto& row : *collisionObjects) {
+			for (auto& row : map->data()) {
 				for (auto& r : row) {
-					if (CheckCollisionRecs(hitbox, r)) {
+					if (!r.solid) continue;
+					if (CheckCollisionRecs(hitbox, r.hitbox)) {
 						hitbox.y += 5;
 						break;
 					}
@@ -141,9 +147,10 @@ public:
 		if (IsKeyDown(KeyboardKey::KEY_A)) {
 			hitbox.x -= 5;
 
-			for (auto& row : *collisionObjects) {
+			for (auto& row : map->data()) {
 				for (auto& r : row) {
-					if (CheckCollisionRecs(hitbox, r)) {
+					if (!r.solid) continue;
+					if (CheckCollisionRecs(hitbox, r.hitbox)) {
 						hitbox.x += 5;
 						break;
 					}
@@ -153,9 +160,10 @@ public:
 		if (IsKeyDown(KeyboardKey::KEY_S)) {
 			hitbox.y += 5;
 
-			for (auto& row : *collisionObjects) {
+			for (auto& row : map->data()) {
 				for (auto& r : row) {
-					if (CheckCollisionRecs(hitbox, r)) {
+					if (!r.solid) continue;
+					if (CheckCollisionRecs(hitbox, r.hitbox)) {
 						hitbox.y -= 5;
 						break;
 					}
@@ -165,9 +173,10 @@ public:
 		if (IsKeyDown(KeyboardKey::KEY_D)) {
 			hitbox.x += 5;
 
-			for (auto& row : *collisionObjects) {
+			for (auto& row : map->data()) {
 				for (auto& r : row) {
-					if (CheckCollisionRecs(hitbox, r)) {
+					if (!r.solid) continue;
+					if (CheckCollisionRecs(hitbox, r.hitbox)) {
 						hitbox.x -= 5;
 						break;
 					}
@@ -185,23 +194,17 @@ int main() {
 	InitWindow(800, 800, "Untitled Wizard Game");
 	SetTargetFPS(60);
 
-	std::vector<std::vector<Rectangle>> boxGrid;
-
-	boxGrid.resize(25);
-	for (auto& row : boxGrid) {
-		row.resize(25);
-	}
-
-	Player player(&boxGrid);
-	
-	for (int y = 0; y < 25; y++) {
-		for (int x = 0; x < 25; x++) {
+	Tilemap tiles(25, 25);
+	for (int y = 0; y < tiles.get_dims(); y++) {
+		for (int x = 0; x < tiles.get_dims(); x++) {
 			if (GetRandomValue(0, 3) == 0) {
-				boxGrid.at(y).at(x) = { (float)x * 25.0f, (float)y * 25.0f, 25.0f, 25.0f };
+				tiles.set_occupy(x, y, true);
+				tiles.set_solid(x, y, (bool)GetRandomValue(0, 1));
 			}
 		}
 	}
-
+	Player player(&tiles);
+	
 	while (!WindowShouldClose()) {
 		//game logic
 		player.move();
@@ -210,13 +213,23 @@ int main() {
 		BeginDrawing();
 		ClearBackground(DARKGREEN);
 
-		player.draw();
+		
 
-		for (auto& row : boxGrid) {
+		for (auto& row : tiles.data()) {
 			for (auto& r : row) {
-				DrawRectangleRec(r, DARKBLUE);
+				if (r.occupied == false) continue;
+				
+				if (r.solid == true) {
+					DrawRectangleRec(r.hitbox, DARKBLUE);
+				}
+				else {
+					DrawRectangleRec(r.hitbox, BLUE);
+				}
+				
 			}
 		}
+
+		player.draw();
 
 		/*for (auto& r : boxes) {
 			DrawRectangleRec(r, DARKBLUE);
