@@ -133,53 +133,29 @@ public:
 	void move() {
 		if (IsKeyDown(KeyboardKey::KEY_W)) {
 			hitbox.y -= 5;
-
-			for (auto& row : map->data()) {
-				for (auto& r : row) {
-					if (!r.solid) continue;
-					if (CheckCollisionRecs(hitbox, r.hitbox)) {
-						hitbox.y += 5;
-						break;
-					}
-				}
-			}
+			checkCollision(hitbox.y, -5);
 		}
 		if (IsKeyDown(KeyboardKey::KEY_A)) {
 			hitbox.x -= 5;
-
-			for (auto& row : map->data()) {
-				for (auto& r : row) {
-					if (!r.solid) continue;
-					if (CheckCollisionRecs(hitbox, r.hitbox)) {
-						hitbox.x += 5;
-						break;
-					}
-				}
-			}
+			checkCollision(hitbox.x, -5);
 		}
 		if (IsKeyDown(KeyboardKey::KEY_S)) {
 			hitbox.y += 5;
-
-			for (auto& row : map->data()) {
-				for (auto& r : row) {
-					if (!r.solid) continue;
-					if (CheckCollisionRecs(hitbox, r.hitbox)) {
-						hitbox.y -= 5;
-						break;
-					}
-				}
-			}
+			checkCollision(hitbox.y, 5);
 		}
 		if (IsKeyDown(KeyboardKey::KEY_D)) {
 			hitbox.x += 5;
+			checkCollision(hitbox.x, 5);
+		}
+	}
 
-			for (auto& row : map->data()) {
-				for (auto& r : row) {
-					if (!r.solid) continue;
-					if (CheckCollisionRecs(hitbox, r.hitbox)) {
-						hitbox.x -= 5;
-						break;
-					}
+	void checkCollision(float& var, float oSpeed) {
+		for (auto& row : map->data()) {
+			for (auto& r : row) {
+				if (!r.solid) continue;
+				if (CheckCollisionRecs(hitbox, r.hitbox)) {
+					var += oSpeed *= -1;
+					break;
 				}
 			}
 		}
@@ -230,10 +206,6 @@ int main() {
 		}
 
 		player.draw();
-
-		/*for (auto& r : boxes) {
-			DrawRectangleRec(r, DARKBLUE);
-		}*/
 
 		EndDrawing();
 	}
