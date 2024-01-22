@@ -17,12 +17,12 @@
 * Create distinction between tiles and blocks
 *	TILE: invisible, can be occupied, solid, stores root of block
 *	BLOCK: visible, interactable
-* make blocks be able to be colored
-* make blocks able to take up multiple tiles
-* make blocks placeable
-* make blocks breakable
-* make blocks swappable (?)
-* make blocks interactable
+* make blocks be able to be colored..............DONE
+* make blocks able to take up multiple tiles.....DONE
+* make blocks placeable..........................DONE
+* make blocks breakable..........................TODO
+* make blocks swappable (?)......................TODO
+* make blocks interactable.......................TODO
 */
 
 //Man revolted, and so God revoked their godly status (ITEMS) [WIP]
@@ -40,13 +40,19 @@ class Block {
 
 struct Tile {
 	Rectangle hitbox{ 0.0f, 0.0f, 0.0f, 0.0f };
-	bool occupied{0};
-	bool solid{0};
+	bool occupied{ false };
+	bool solid{ false };
+
+	bool isRoot{ false };
+	int sourceX{ -1 };
+	int sourceY{ -1 };
+	int blockWidth{ -1 };
+	int blockHeight{ -1 };
 };
 
 class Tilemap {
 	std::vector<std::vector<Tile>> grid;
-	int tileDims = 0;
+	int tileDims = 25;
 
 public:
 	Tilemap() {
@@ -54,26 +60,13 @@ public:
 	}
 
 	Tilemap(int gridDims, int tileDims) {
-		set_Dims(gridDims);
-
-		//grid align tiles
-		for (int y = 0; y < gridDims; y++) {
-			for (int x = 0; x < gridDims; x++) {
-				at(x, y).hitbox = { (float)(x * tileDims), (float)(y * tileDims), (float)tileDims, (float)tileDims };
-			}
-		}
+		set_tileDims(tileDims);
+		set_gridDims(gridDims);	
 	}
 
+	//GETTERS
 	const std::vector<std::vector<Tile>>& data() {
 		return grid;
-	}
-
-	//can only be set if hasnt been set before
-	void set_Dims(int gridDims) {
-		grid.resize(gridDims);
-		for (auto& row : grid) {
-			row.resize(gridDims);
-		}
 	}
 
 	Tile& at(int x, int y) {
@@ -82,6 +75,32 @@ public:
 
 	int get_dims() {
 		return grid.size();
+	}
+
+
+
+	//SETTERS
+	void set_gridDims(int gridDims) {
+		std::cout << "tile dims: " << tileDims << "\n";
+		
+		grid.resize(gridDims);
+		for (auto& row : grid) {
+			row.resize(gridDims);
+		}
+
+		for (int y = 0; y < gridDims; y++) {
+			for (int x = 0; x < gridDims; x++) {
+				at(x, y).hitbox.x = (float)(x * tileDims); //{ (float)(x * tileDims), (float)(y * tileDims), (float)tileDims, (float)tileDims };
+				at(x, y).hitbox.y = (float)(y * tileDims);
+				at(x, y).hitbox.width = (float)(tileDims);
+				at(x, y).hitbox.height = (float)(tileDims);
+			}
+		}
+	}
+
+	void set_tileDims(int tileDims) {
+		this->tileDims = tileDims;
+		std::cout << "tile dims: " << this->tileDims << "\n";
 	}
 
 	void set_occupy(int x, int y, bool state) {
@@ -117,6 +136,68 @@ class Blockmap {
 public:
 	Blockmap() {
 
+	}
+
+	Blockmap(int gridDims, int tileDims) {
+		tiles.set_gridDims(gridDims);
+		tiles.set_tileDims(tileDims);
+	}
+
+	Tilemap& get_map() {
+		return tiles;
+	}
+
+	void place(int x, int y, int width, int height, bool solid) {
+		if (isRegionOccupied(x, y, width, height)) return;
+
+		tiles.at(x, y).isRoot = true;
+		tiles.at(x, y).blockWidth = width;
+		tiles.at(x, y).blockHeight = height;
+
+		for (int Y = y; Y < y + height; Y++) {
+			for (int X = x; X < x + width; X++) {
+				tiles.set_occupy(X, Y, true);
+				tiles.set_solid(X, Y, solid);
+				tiles.at(X, Y).sourceX = x;
+				tiles.at(X, Y).sourceY = y;
+
+				std::cout << "x, y: " << x << ", " << y << ": source: " << tiles.at(X, Y).sourceX << ", " << tiles.at(X, Y).sourceY << "\n";
+			}
+		}
+	}
+
+	void destroy(int x, int y) {
+		Tile& clicked = tiles.at(x, y);
+		if (clicked.occupied == false) return;
+		
+		Tile& root = tiles.at(clicked.sourceX, clicked.sourceY);
+		std::cout << "root pos: " << root.sourceX << ", " << root.sourceY << "\n";
+		
+		int sX = root.sourceX;
+		int sY = root.sourceY;
+		int bH = root.blockHeight;
+		int bW = root.blockWidth;
+
+		for (int Y = sY; Y < sY + bH; Y++) {
+			for (int X = sX; X < sX + bW; X++) {
+				std::cout << "removing pos: " << X << ", " << Y << "\n";
+
+				tiles.set_occupy(X, Y, false);
+				tiles.set_solid(X, Y, false);
+				tiles.at(X, Y).sourceX = -1;
+				tiles.at(X, Y).sourceY = -1;
+			}
+		}
+	}
+
+private:
+	bool isRegionOccupied(int x, int y, int width = 1, int height = 1) {
+		for (int Y = y; Y < y + height; Y++) {
+			for (int X = x; X < x + width; X++) {
+				if (tiles.at(X, Y).occupied == true) return true;
+			}
+		}
+		return false;
 	}
 };
 
@@ -170,28 +251,42 @@ int main() {
 	InitWindow(800, 800, "Untitled Wizard Game");
 	SetTargetFPS(60);
 
-	Tilemap tiles(25, 25);
-	for (int y = 0; y < tiles.get_dims(); y++) {
+	//Tilemap tiles(25, 25);
+	Blockmap blocks(25, 25);
+	/*for (int y = 0; y < tiles.get_dims(); y++) {
 		for (int x = 0; x < tiles.get_dims(); x++) {
 			if (GetRandomValue(0, 3) == 0) {
 				tiles.set_occupy(x, y, true);
 				tiles.set_solid(x, y, (bool)GetRandomValue(0, 1));
 			}
 		}
-	}
-	Player player(&tiles);
+	}*/
+	Player player(&(blocks.get_map()));
 	
 	while (!WindowShouldClose()) {
 		//game logic
 		player.move();
 
+		if (IsKeyPressed(KeyboardKey::KEY_P)){
+			int x, y, width, height, solid;
+			std::cin >> x >> y >> width >> height >> solid;
+
+			blocks.place(x, y, width, height, (bool)solid);
+		}
+
+		if (IsKeyPressed(KeyboardKey::KEY_L)) {
+			int x, y;
+			std::cin >> x >> y;
+
+			blocks.destroy(x, y);
+		}
+
 		//draw
 		BeginDrawing();
 		ClearBackground(DARKGREEN);
 
-		
-
-		for (auto& row : tiles.data()) {
+		//draw solid and unsolid tiles as different colors
+		for (auto& row : blocks.get_map().data()) {
 			for (auto& r : row) {
 				if (r.occupied == false) continue;
 				
@@ -201,7 +296,6 @@ int main() {
 				else {
 					DrawRectangleRec(r.hitbox, BLUE);
 				}
-				
 			}
 		}
 
